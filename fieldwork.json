@@ -1,0 +1,9 @@
+{
+  "name": "hello-steps",
+  "version": "0.1.0",
+  "track": "typescript-on-node",
+  "steps": [
+    { "id": "01-greet", "title": "Greet someone" },
+    { "id": "02-farewell", "title": "Say goodbye" }
+  ]
+}

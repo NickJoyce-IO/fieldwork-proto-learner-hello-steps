@@ -1,0 +1,32 @@
+# Runs this Project's Steps on every pull request and lists which ones pass in
+# the check summary. A pull request may leave the Current Step unfinished, so
+# the check fails only when the Steps cannot be run at all.
+name: Fieldwork
+
+on:
+  pull_request:
+
+jobs:
+  steps:
+    name: Fieldwork Steps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install
+      - name: Run Steps
+        run: |
+          status=0
+          npm test --silent > "$RUNNER_TEMP/steps.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/steps.txt"
+          {
+            echo "## Fieldwork Steps"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/steps.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Exit code 1 means the Current Step is still in progress.
+          [ "$status" -le 1 ]
