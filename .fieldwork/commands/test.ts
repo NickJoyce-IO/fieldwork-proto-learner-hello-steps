@@ -1,9 +1,8 @@
 import { watch as watchDir, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { loadProject, stepDir, stepsFolder, type Project, type StepDefinition } from "../project.ts";
-import { describeStepTests, runStepTests, stepTestsPass } from "../run-step-tests.ts";
-import { typeCheck, typeErrorsForStep, type TypeDiagnostic } from "../type-check.ts";
+import { checkOneStep, checkStepsInOrder, stepLabel, type StepCheck } from "../check-steps.ts";
+import { loadProject, stepsFolder, type Project } from "../project.ts";
 
 /**
  * Runs the Project's Steps in order, stopping at the Current Step, or with
@@ -114,28 +113,14 @@ interface Report {
   exitCode: number;
 }
 
-interface StepResult {
-  passed: boolean;
-  /** The Step's status line, e.g. `✘ Step 2: Say goodbye (1/2 tests passing)`. */
-  line: string;
-  typeErrors: TypeDiagnostic[];
-}
-
 async function runInOrder(project: Project): Promise<Report> {
-  const allTypeErrors = typeCheck(project);
-  const lines: string[] = [];
-  let current: StepResult | undefined;
-
+  const checks = await checkStepsInOrder(project);
+  const lines = checks.map(statusLine);
   for (const [index, step] of project.steps.entries()) {
-    if (current !== undefined) {
-      lines.push(`🔒 ${stepLabel(index, step)}`);
-      continue;
-    }
-    const result = await checkStep(project, index, allTypeErrors);
-    lines.push(result.line);
-    if (!result.passed) current = result;
+    if (index >= checks.length) lines.push(`🔒 ${stepLabel(index, step)}`);
   }
 
+  const current = checks.find(({ passed }) => !passed);
   if (current === undefined) {
     lines.push("", `All ${project.steps.length} Steps passing`);
   } else {
@@ -145,29 +130,17 @@ async function runInOrder(project: Project): Promise<Report> {
 }
 
 async function runOne(project: Project, index: number): Promise<Report> {
-  const result = await checkStep(project, index, typeCheck(project));
-  return { lines: [result.line, ...typeErrorLines(result)], exitCode: result.passed ? 0 : 1 };
+  const check = await checkOneStep(project, index);
+  return { lines: [statusLine(check), ...typeErrorLines(check)], exitCode: check.passed ? 0 : 1 };
 }
 
-/** Runs one Step's tests and counts the type errors against it. */
-async function checkStep(project: Project, index: number, allTypeErrors: TypeDiagnostic[]): Promise<StepResult> {
-  const step = project.steps[index]!;
-  const label = stepLabel(index, step);
-  const results = await runStepTests(stepDir(project, step));
-  const typeErrors = typeErrorsForStep(allTypeErrors, step);
+/** A Step's status line, e.g. `✘ Step 2: Say goodbye (1/2 tests passing)`. */
+function statusLine({ index, step, passed, details }: StepCheck): string {
   // Monorepo `verify` counts these "✔ Step" lines (tooling/src/tracks.ts).
-  if (stepTestsPass(results) && typeErrors.length === 0) return { passed: true, line: `✔ ${label}`, typeErrors };
-
-  const details = [describeStepTests(results)];
-  if (typeErrors.length > 0) details.push(`${typeErrors.length} type error${typeErrors.length === 1 ? "" : "s"}`);
-  return { passed: false, line: `✘ ${label} (${details.filter(Boolean).join(", ")})`, typeErrors };
+  return passed ? `✔ ${stepLabel(index, step)}` : `✘ ${stepLabel(index, step)} (${details})`;
 }
 
-function typeErrorLines({ typeErrors }: StepResult): string[] {
+function typeErrorLines({ typeErrors }: StepCheck): string[] {
   if (typeErrors.length === 0) return [];
   return ["", "Type errors:", ...typeErrors.map(({ text }) => `  ${text}`)];
-}
-
-function stepLabel(index: number, step: StepDefinition): string {
-  return `Step ${index + 1}: ${step.title}`;
 }
