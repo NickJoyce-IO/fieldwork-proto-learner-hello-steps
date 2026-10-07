@@ -1,0 +1,32 @@
+# After every merge to main, records which Steps pass there (the Completed
+# Steps) in this repository's pinned Progress issue. Nothing is committed, so
+# main can stay protected.
+name: Fieldwork progress
+
+on:
+  push:
+    branches: [main]
+
+# Read the code, write the Progress issue; never push.
+permissions:
+  contents: read
+  issues: write
+
+# Only the latest main matters, so a newer merge replaces a run still waiting.
+concurrency:
+  group: fieldwork-progress
+  cancel-in-progress: true
+
+jobs:
+  progress:
+    name: Record progress
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install
+      - run: node .fieldwork/cli.ts progress
+        env:
+          GH_TOKEN: ${{ github.token }}

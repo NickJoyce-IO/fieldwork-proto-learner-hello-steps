@@ -1,6 +1,7 @@
 // Learner-side commands for a TypeScript-on-Node Project (ADR-0002). This
 // runner ships inside every published Project; maintainer-only commands
 // (verify, publish) live in the monorepo's tooling package instead.
+import { progressCommand } from "./commands/progress.ts";
 import { testCommand } from "./commands/test.ts";
 
 interface Command {
@@ -13,6 +14,10 @@ const commands: Record<string, Command> = {
   test: {
     summary: "Run Steps in order up to the Current Step (--step N for one Step, --watch to rerun on save)",
     run: testCommand,
+  },
+  progress: {
+    summary: "Record Completed Steps in the repository's pinned Progress issue (run by GitHub Actions on main)",
+    run: progressCommand,
   },
 };
 
