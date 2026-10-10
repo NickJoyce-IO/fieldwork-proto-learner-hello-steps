@@ -1,5 +1,5 @@
 {
   "name": "Fieldwork Project",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
-  "postCreateCommand": "npm install"
+  "postCreateCommand": "npm ci"
 }

@@ -15,8 +15,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-      - run: npm install
+      - run: npm ci
       - name: Run Steps
+        env:
+          # Step 0 of a Track's first Project asks GitHub whether main is protected.
+          GH_TOKEN: ${{ github.token }}
         run: |
           status=0
           npm test --silent > "$RUNNER_TEMP/steps.txt" 2>&1 || status=$?
