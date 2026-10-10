@@ -124,14 +124,14 @@ async function runInOrder(project: Project): Promise<Report> {
   if (current === undefined) {
     lines.push("", `All ${project.steps.length} Steps passing`);
   } else {
-    lines.push(...typeErrorLines(current));
+    lines.push(...explanationLines(current));
   }
   return { lines, exitCode: current === undefined ? 0 : 1 };
 }
 
 async function runOne(project: Project, index: number): Promise<Report> {
   const check = await checkOneStep(project, index);
-  return { lines: [statusLine(check), ...typeErrorLines(check)], exitCode: check.passed ? 0 : 1 };
+  return { lines: [statusLine(check), ...explanationLines(check)], exitCode: check.passed ? 0 : 1 };
 }
 
 /** A Step's status line, e.g. `✘ Step 2: Say goodbye (1/2 tests passing)`. */
@@ -140,7 +140,9 @@ function statusLine({ index, step, passed, details }: StepCheck): string {
   return passed ? `✔ ${stepLabel(index, step)}` : `✘ ${stepLabel(index, step)} (${details})`;
 }
 
-function typeErrorLines({ typeErrors }: StepCheck): string[] {
-  if (typeErrors.length === 0) return [];
-  return ["", "Type errors:", ...typeErrors.map(({ text }) => `  ${text}`)];
+/** What a failing Step's report adds below the status lines: its guidance and type errors. */
+function explanationLines({ guidance, typeErrors }: StepCheck): string[] {
+  const lines = guidance === undefined ? [] : ["", guidance];
+  if (typeErrors.length === 0) return lines;
+  return [...lines, "", "Type errors:", ...typeErrors.map(({ text }) => `  ${text}`)];
 }
